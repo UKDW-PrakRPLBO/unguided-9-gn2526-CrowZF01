@@ -16,8 +16,7 @@ import javafx.scene.control.TableView;
 import javafx.scene.control.cell.PropertyValueFactory;
 
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 public class AppController {
     @FXML
@@ -127,12 +126,52 @@ public class AppController {
         // ambil data dari attribute nilai_table
         // tips: target_col merujuk pada nama kolom di datbase sedangkan val adalah value yang di cari dari kolom tersebut misal:
         // target_col -> nim, val -> 71200001, maka kita mencari 71200001 di kolom nim
+        List<Nilai> listNilai = nilai_table.fetch_nilai_by(target_col, val);
+        Map<String, Integer> mapNilai = new HashMap<>();
+        for (String label: nilai_table.penilaian){
+            mapNilai.put(label, 0);
+        }
+        for (Nilai n: listNilai){
+            String grade = n.getNilai();
+            mapNilai.put(grade, mapNilai.getOrDefault(grade, 0) + 1);
+        }
+
+        XYChart.Series<String, Number> series = new XYChart.Series<>();
+        series.setName(target_col);
+
+        for(String label: nilai_table.penilaian){
+            series.getData().add(new XYChart.Data<>(label, mapNilai.get(label)));
+        }
+        barchart.getData().setAll(series);
+
     }
 
     public void update_linechart(String kode_mk) {
         // TODO: buatlah linechart yang menggambarkan nilai mean dari setiap angkatan
         // angkatan dapat di ambil dengan cara getAngkatan() pada entity Mahasiswa
         // tips: fetch dulu entity mahasiswa menggunakan fetch_mahasiswa_by_nim() di mhs_tabel menggunakan nim pada nilai_table
+        List<Nilai> listNilai = nilai_table.fetch_nilai_by_kode_mk(kode_mk);
+        Map<Integer, Double> totalNilai = new TreeMap<>();
+        Map<Integer, Integer> jumlahMhs = new TreeMap<>();
+        for (Nilai n: listNilai){
+            Mahasiswa mhs = mhs_table.fetch_mahasiswa_by_nim(n.getNIM());
+            if (mhs != null){
+                int angkatan  = mhs.getAngkatan();
+                double poin = n.get_converted_nilai();
+
+                totalNilai.put(angkatan, totalNilai.getOrDefault(angkatan, 0.0) + poin);
+                jumlahMhs.put(angkatan, jumlahMhs.getOrDefault(angkatan, 0) + 1);
+            }
+        }
+
+        XYChart.Series<String, Number> series = new XYChart.Series<>();
+        series.setName("Rata-rata");
+
+        for(Integer angkatan: totalNilai.keySet()){
+            double mean =  totalNilai.get(angkatan) / jumlahMhs.get(angkatan);
+            series.getData().add(new XYChart.Data<>(String.valueOf(angkatan), mean));
+        }
+        linechart.getData().setAll(series);
 
     }
 
@@ -142,5 +181,20 @@ public class AppController {
         // ambil data dari attribute nilai_table
         // tips: target_col merujuk pada nama kolom di datbase sedangkan val adalah value yang di cari dari kolom tersebut misal:
         // target_col -> nim, val -> 71200001, maka kita mencari 71200001 di kolom nim
+        List<Nilai> listNilai = nilai_table.fetch_nilai_by(target_col, val);
+        Map<String, Integer> mapNilai = new HashMap<>();
+        for (Nilai n: listNilai){
+            mapNilai.put(n.getNilai(), mapNilai.getOrDefault(n.getNilai(), 0) + 1);
+        }
+
+        ObservableList<PieChart.Data> pieData = FXCollections.observableArrayList();
+        for(String label: nilai_table.penilaian){
+            int count = mapNilai.getOrDefault(label, 0);
+            if(count > 0){
+                String labelFormat = label + " (" + count + ")";
+                pieData.add(new PieChart.Data(labelFormat, count));
+            }
+        }
+        piechart.setData(pieData);
     }
 }
